@@ -124,31 +124,39 @@ def main():
     if search_results == []:
         print("No results found.")
         exit()
+    result_dict = {}
+    result_id_count = 0
     for result in search_results:
         if result['name'] == artist:
-            artist_id = result['id']
-            print("...found " + result['name'] + ", id: " + artist_id)
-            break
-    if artist_id == None:
+            result_dict[result_id_count] = result['id']
+            print(str(result_id_count) + " ...found " + result['name'] 
+                  + ", " + result['disambiguation'])
+            result_id_count += 1
+    if len(result_dict.keys()) == 0:
         print("...no artist found with specified name.")
         exit()
+    elif len(result_dict.keys()) == 1:
+        artist_id = result_dict[0]
     else:
-        print("Done.")
+        user_selection = None
+        while(user_selection not in list(result_dict.keys())):
+            user_selection = int(input("Please select a number: "))
+        artist_id = result_dict[user_selection]
+    print("Done.")
     
     print("Searching for " + artist + " albums...")
     
-    release_titles = set()
+    release_titles = []
     release_ids = []
     
     for release in musicbrainzngs.browse_releases(
-                                      artist=artist_id,
-                                      release_type=['album'])['release-list']:
+                               artist=artist_id,
+                               release_type=['album'])['release-list']:
         release_title = release['title']
-        release_id = release['id']
-        if release['title'] not in release_titles:
+        if release_title not in release_titles:
             print("...found " + release_title, flush=True)
-            release_titles.add(release_title)
-            release_ids.append(release_id)
+            release_titles.append(release_title)
+            release_ids.append(release['id'])
     print("Done.")
     
     releases = zip(release_titles, release_ids)
