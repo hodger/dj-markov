@@ -130,10 +130,9 @@ def main():
                                                             .replace(":", ""))
     print("Done.")
     print("Building Markov Chain...")
-    markov_chain = Markov(parsed_songs)
+    markov_chain = Markov(" ".join(parsed_songs))
     print("Done.")
-    #markov_chain.print_freq_table()
-    result = markov_chain.compute(150)
+    result = markov_chain.traverse(150)
     print(result)
     
 if __name__ == "__main__":
