@@ -1,103 +1,11 @@
 #!/usr/bin/env python
 
-from collections import defaultdict
-from random import randint
 from PyLyrics import *
+from markov import Markov
 import musicbrainzngs
 import sys
-import numpy as np
 import argparse
 import string
-
-class Markov(object):
-    #Strip text and create frequency table.
-    def __init__(self, initial_text):
-        self.freq_table = None
-        self.text = ""
-        self.chain_index = 0
-        self.chain = None
-        self.root_word = None
-        
-        if isinstance(initial_text, str):
-            self.add_text(initial_text)
-        else:
-            #initial_text is a list of strings.
-            delim = " "
-            self.add_text(delim.join(initial_text))
-        
-        self.chain = self.gen_chain()
-    
-    #Recompute markov chain frequencies with new text added.
-    def add_text(self, text):
-        self.text = self.text + " " + text
-        self.freq_table = defaultdict(list)
-        
-        tokens = [x.strip(",").strip(".") 
-                  for x in self.text.strip(" ").split(" ")]
-        paired_tokens = []
-        
-        #pair the tokens.
-        for i in range(len(tokens)):
-            if i < len(tokens) - 1:
-                paired_tokens.append((tokens[i], tokens[i + 1]))
-            else:
-                paired_tokens.append((tokens[i], None))
-
-        #create a list of potentinal following tokens
-        for pair in paired_tokens:
-            self.freq_table[pair[0]].append(pair[1])
-        
-        #calculate frequencies
-        for origin, links in self.freq_table.items():
-            link_count = len(links)
-            token_counts = defaultdict(int)
-            for i in links:
-                token_counts[i] += 1
-            self.freq_table[origin] = [(x, y / link_count) 
-                                       for x, y in token_counts.items()]
-    
-    def compute(self, length, root_word=None, continue_on_error=False):
-        self.chain_index = 0
-        if root_word is None:
-            keys = list(self.freq_table.keys())
-            self.root_word = keys[randint(0, len(keys) - 1)]
-        else:
-            self.root_word = root_word
-        result = ""
-        try:
-            for i in range(length):
-                result += next(self.chain) + " "
-        except StopIteration:
-            pass
-        return result
-        
-    def gen_chain(self):
-        if self.chain_index == 0:
-            self.chain_index += 1
-            yield self.root_word
-        frequencies = self.freq_table[self.root_word]
-        while(not (len(frequencies) == 1 and frequencies[0][0] == None)):
-            #print(self.freq_table[self.root_word])
-            frequencies = self.freq_table[self.root_word]
-            choices = [c for c, w in frequencies]
-            weights = [w for c, w in frequencies]
-            try:
-                new_word = np.random.choice(choices, size=1, p=weights)[0]
-            except ValueError:
-                #Weights do not sum to 1, so add a dummy with the difference.
-                choices.append(None)
-                weights.append(1 - sum(weights))
-                new_word = np.random.choice(choices, size=1, p=weights)[0]
-            if new_word == None:
-                continue
-            else:
-                self.root_word = new_word
-                self.chain_index += 1
-                yield new_word       
-    
-    def print_freq_table(self):
-        for key, value in self.freq_table.items():
-            print(key, value)
 
 parser = argparse.ArgumentParser(description='Let DJMarkov spit fire in the'
                                            + ' style of your favorite artist.')
@@ -129,8 +37,15 @@ def main():
     for result in search_results:
         if result['name'] == artist:
             result_dict[result_id_count] = result['id']
-            print(str(result_id_count) + " ...found " + result['name'] 
-                  + ", " + result['disambiguation'])
+            message = ""
+            try:
+                message += str(result_id_count)
+                message += " ...found "
+                message += result['name']
+                message += result['disambiguation']
+            except Exception:
+                pass
+            print(message)
             result_id_count += 1
     if len(result_dict.keys()) == 0:
         print("...no artist found with specified name.")
@@ -152,9 +67,27 @@ def main():
     for release in musicbrainzngs.browse_releases(
                                artist=artist_id,
                                release_type=['album'])['release-list']:
-        release_title = release['title']
+        release_title = release['title'].strip("\'").strip("\"")
+        #try:
+        #    release_title.encode('utf-8')
+        #except Exception:
+        #    pass
+        #print(release_title + " !")
         if release_title not in release_titles:
-            print("...found " + release_title, flush=True)
+            print('...found ' + release_title, flush=True)
+            release_titles.append(release_title)
+            release_ids.append(release['id'])
+    
+    for release in musicbrainzngs.browse_releases(
+                               artist=artist_id,
+                               release_type=['mixtape/street'])['release-list']:
+        release_title = release['title'].strip("\'").strip("\"")
+        #try:
+        #    release_title = release_title.encode('utf-8')
+        #except Exception:
+        #    pass
+        if not release_title in release_titles:
+            print('...found ' + str(release_title), flush=True)
             release_titles.append(release_title)
             release_ids.append(release['id'])
     print("Done.")
@@ -191,7 +124,10 @@ def main():
     parsed_songs = []
     for song in songs:
         lines = song.split("\n")
-        parsed_songs.append(" ".join(lines).replace(".", "").replace(",", "").replace("!", "").replace("?", "").replace(":", ""))
+        parsed_songs.append(" ".join(lines).replace(".", "").replace(",", "")
+                                                            .replace("!", "")
+                                                            .replace("?", "")
+                                                            .replace(":", ""))
     print("Done.")
     print("Building Markov Chain...")
     markov_chain = Markov(parsed_songs)
