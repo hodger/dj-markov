@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from PyLyrics import *
-from markov import Markov
+from markov import TextMarkov
 import musicbrainzngs
 import sys
 import argparse
@@ -120,6 +120,10 @@ def main():
     print(str(len(songs)) + " songs available.")
     print("Done.")
     
+    if len(songs) == 0:
+        print("Artist does not have songs on file. Exiting.")
+        exit()
+    
     print("Parsing available songs...")
     parsed_songs = []
     for song in songs:
@@ -130,10 +134,10 @@ def main():
                                                             .replace(":", ""))
     print("Done.")
     print("Building Markov Chain...")
-    markov_chain = Markov(" ".join(parsed_songs))
+    markov_chain = TextMarkov(" ".join(parsed_songs))
     print("Done.")
     result = markov_chain.traverse(150)
-    print(result)
+    print(" ".join(result))
     
 if __name__ == "__main__":
     main()
