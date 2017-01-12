@@ -63,14 +63,14 @@ class Markov(object):
         root = all_objs[randint(0, len(all_objs) - 1)]
         return root
     
-    def traverse(self, dist, min_dist=None, root=None, restart_on_error=True):
+    def traverse(self, dist, min_dist=None, root=None, force_best=False, restart_on_error=True):
         if not self.freq_table:
             raise ValueError("No text available")
         if root is None:
             self.root = self.random()
         else:
             self.root = root
-        self.chain = self.gen_chain()
+        self.chain = self.gen_chain(force_best=force_best)
         result = []
         chain_index = 0
         while chain_index < dist:
@@ -103,43 +103,33 @@ class Markov(object):
                 best_words.append(word)
         return best_words[randint(0, len(best_words) - 1)]
     
-    #TODO: use best to make this work
-    def best_chain(self, dist, root=None):
-        if not self.freq_table:
-            raise ValueError("No text available")
-        if root is None:
-            self.root = self.random()
-        else:
-            self.root = root
-        result = []
-        chain_index = 0
-        while chain_index < dist:
-            item = self.retrieve(root)
-            
-            chain_index += 1
-    
-    def gen_chain(self):
+    def gen_chain(self, force_best=False):
         if not self.root:
             raise ValueError("Root has not been set")
         yield self.root
         frequencies = self.retrieve(self.root)
         while frequencies and not ((len(frequencies) == 1) and 
                                                      frequencies[0][0] == None):
-            frequencies = self.retrieve(self.root)
-            choices = [c for c, w in frequencies]
-            weights = [w for c, w in frequencies]
-            try:
-                new_obj = np.random.choice(choices, size=1, p=weights)[0]
-            except ValueError:
-                #Weights don't sum to 1. Add a dummy and try again.
-                choices.append(None)
-                weights.append(1 - sum(weights))
-                new_obj = np.random.choice(choices, size=1, p=weights)[0]
-            if new_obj is None:
-                continue
-            else:
+            if force_best:
+                new_obj = self.best(self.root)
                 self.root = new_obj
                 yield new_obj
+            else:
+                choices = [c for c, w in frequencies]
+                weights = [w for c, w in frequencies]
+                try:
+                    new_obj = np.random.choice(choices, size=1, p=weights)[0]
+                except ValueError:
+                    #Weights don't sum to 1. Add a dummy and try again.
+                    choices.append(None)
+                    weights.append(1 - sum(weights))
+                    new_obj = np.random.choice(choices, size=1, p=weights)[0]
+                if new_obj is None:
+                    continue
+                else:
+                    self.root = new_obj
+                    yield new_obj
+            frequencies = self.retrieve(self.root)
         
     def next_objs(self, orig):
         next_objs = list(self.freq_table[orig].keys())

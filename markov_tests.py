@@ -15,7 +15,7 @@ print("")
 new_chain = Markov(load='test_chain.txt', obj_list=['hello', 'nuts'])
 new_chain.dumps()
 new_chain.dump_totals()
-print(new_chain.traverse(5))
+print(new_chain.traverse(5, force_best=True))
 new_chain.dumps()
 
 print("")
